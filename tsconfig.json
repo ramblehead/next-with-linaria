@@ -8,6 +8,7 @@
     "moduleResolution": "node",
     "sourceMap": true,
     "declaration": true,
+    "declarationMap": true,
     "noImplicitAny": false,
     "pretty": true,
     "strict": true,
