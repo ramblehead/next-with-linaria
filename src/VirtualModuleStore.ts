@@ -1,38 +1,9 @@
 import Cache, { type FileSystemCache } from 'file-system-cache';
 import path from 'path';
 import type * as Webpack from 'webpack';
-import type { Compiler } from 'webpack';
-import VirtualModulesPlugin from 'webpack-virtual-modules';
+import VirtualModulesPlugin from './plugins/webpack-virtual-modules';
 
 import { isFSCache } from './utils';
-
-type AfterInitTask = () => void;
-
-class VirtualModulesPluginSafe extends VirtualModulesPlugin {
-  public runTaskAfterInit(task: AfterInitTask): boolean {
-    if (!this._initialized) {
-      this._pendingTasks.push(task);
-      return false;
-    }
-
-    task();
-    return true;
-  }
-
-  public apply(compiler: Compiler) {
-    super.apply(compiler);
-
-    for (const task of this._pendingTasks) {
-      task();
-    }
-
-    this._pendingTasks = [];
-    this._initialized = true;
-  }
-
-  private _initialized = false;
-  private _pendingTasks: AfterInitTask[] = [];
-}
 
 type CachedFile = {
   path: string;
@@ -43,7 +14,7 @@ type CachedFile = {
 };
 
 export default class VirtualModuleStore {
-  private vmInstances: Map<string, VirtualModulesPluginSafe> = new Map();
+  private vmInstances: Map<string, VirtualModulesPlugin> = new Map();
   private initialCachedFiles: Record<string, string> = {};
   private cssCache: FileSystemCache | undefined;
   private dependencyCache: FileSystemCache | undefined;
@@ -79,14 +50,14 @@ export default class VirtualModuleStore {
   }
 
   public createStore(name = 'default') {
-    const vm = new VirtualModulesPluginSafe(this.initialCachedFiles);
+    const vm = new VirtualModulesPlugin(this.initialCachedFiles);
     this.vmInstances.set(name, vm);
     return vm;
   }
 
   public addModule(path: string, content: string, addToCache = true) {
     this.vmInstances.forEach((vm) => {
-      vm.runTaskAfterInit(() => vm.writeModule(path, content));
+      vm.writeModule(path, content);
     });
     if (this.cssCache && addToCache) {
       this.cssCache.set(path, { content, path });
