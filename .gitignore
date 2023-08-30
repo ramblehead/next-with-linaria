@@ -4,3 +4,5 @@ lib/
 test-results/
 .DS_Store
 tests/example/apps/nextjs/.vscode/settings.json
+
+node_modules.hidden/
