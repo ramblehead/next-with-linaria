@@ -4,9 +4,9 @@
 // Thanks https://github.com/sysgears/webpack-virtual-modules/blob/ea53626016db74de66b14401b7377cbc3fc31059/src/index.ts
 // This is the webpack-virtual-modules package with the slight alteration that
 // we can write modules before the compiler is available.
+
 import path from 'path';
 import type { Compiler } from 'webpack';
-
 import { VirtualStats } from './virtual-stats';
 
 let inode = 45000000;
@@ -117,6 +117,9 @@ class VirtualModulesPlugin {
   }
 
   public writeModule(filePath: string, contents: string): void {
+    // if (!this._compiler) {
+    //   throw new Error(`Plugin has not been initialized`);
+    // }
     // next-with-linaria patch, if not initialized yet, add to static modules
     if (!this._compiler) {
       if (!this._staticModules) {
@@ -274,14 +277,13 @@ class VirtualModulesPlugin {
             // Webpack v4 returns an array, webpack v5 returns an object
             dirData = dirData[1] || dirData.result;
             const filename = segments[count];
-            if (dirData.indexOf(filename) < 0) {
-              const files = dirData.concat([filename]).sort();
-              setData(
-                getReadDirBackend(finalInputFileSystem),
-                dir,
-                createWebpackData(files),
-              );
-            } else {
+            // if (dirData.indexOf(filename) < 0) {
+            //   const files = dirData.concat([filename]).sort();
+            //   setData(getReadDirBackend(finalInputFileSystem), dir, createWebpackData(files));
+            // } else {
+            //   break;
+            // }
+            if (dirData.indexOf(filename) >= 0) {
               break;
             }
             count--;
@@ -300,13 +302,29 @@ class VirtualModulesPlugin {
       }
     };
 
+    // The webpack property is not exposed in webpack v4
+    const version = typeof (compiler as any).webpack === 'undefined' ? 4 : 5;
+
     const watchRunHook = (watcher, callback) => {
       this._watcher = watcher.compiler || watcher;
       const virtualFiles = (compiler as any).inputFileSystem._virtualFiles;
       const fts = compiler.fileTimestamps as any;
+
       if (virtualFiles && fts && typeof fts.set === 'function') {
         Object.keys(virtualFiles).forEach((file) => {
-          fts.set(file, +virtualFiles[file].stats.mtime);
+          const mtime = +virtualFiles[file].stats.mtime;
+          // fts is
+          // Map<string, number> in webpack 4
+          // Map<string, { safeTime: number; timestamp: number; }> in webpack 5
+          fts.set(
+            file,
+            version === 4
+              ? mtime
+              : {
+                  safeTime: mtime,
+                  timestamp: mtime,
+                },
+          );
         });
       }
       callback();
